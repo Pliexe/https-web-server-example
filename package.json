@@ -1,0 +1,26 @@
+{
+  "name": "https-web-server-example",
+  "version": "1.0.0",
+  "description": "",
+  "main": "out/server.js",
+  "scripts": {
+    "dev": "ts-node-dev --rs --respawn --ignore-watch=.next --inspect=4321 src/server.ts",
+    "build": "tsc",
+    "start": "npm start ./out/server.js"
+  },
+  "author": "Pliexe",
+  "license": "MIT",
+  "dependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.14.10",
+    "connect-livereload": "^0.6.1",
+    "express": "^4.19.2",
+    "livereload": "^0.9.3",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.5.3"
+  },
+  "devDependencies": {
+    "@types/connect-livereload": "^0.6.3",
+    "@types/livereload": "^0.9.5"
+  }
+}
