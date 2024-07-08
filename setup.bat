@@ -48,6 +48,31 @@ call "%fullPath%" -install || EXIT /B 1
 echo Generating certificates for localhost, 127.0.0.1, and ::1...
 call "%fullPath%" --key-file localhost-key.pem --cert-file localhost.pem localhost 127.0.0.1 ::1 || EXIT /B 1
 
+echo .
+:: Check if nodejs is presnet
+echo Checking if nodejs is installed...
+if "%node%" == "" (
+    echo Node.js not installed. Downloading from nodejs.org...
+    call winget install Schniz.fnm
+    call %vendorPath%\refreshenv.bat
+    call fnm use --install-if-missing 20
+    echo Done
+    call node -v
+    call npm -v
+)
+echo .
+
+echo Installing project dependencies...
+
+npm install
+
+echo .
+echo Building project...
+
+npm run build
+
+echo .
+
 echo Setup completed successfully.
 
 endlocal

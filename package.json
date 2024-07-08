@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "ts-node-dev --rs --respawn --ignore-watch=.next --inspect=4321 src/server.ts",
     "build": "tsc",
-    "start": "npm start ./out/server.js"
+    "start": "node ./out/server.js"
   },
   "author": "Pliexe",
   "license": "MIT",

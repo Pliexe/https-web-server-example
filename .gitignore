@@ -130,7 +130,7 @@ dist
 .pnp.*
 
 # ingore downloaded files
-vendor/
+mkcert_windows_amd64.exe
 
 # ignore certificates
 certs/
