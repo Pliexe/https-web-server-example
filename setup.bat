@@ -51,14 +51,29 @@ call "%fullPath%" --key-file localhost-key.pem --cert-file localhost.pem localho
 echo .
 :: Check if nodejs is presnet
 echo Checking if nodejs is installed...
-if "%node%" == "" (
-    echo Node.js not installed. Downloading from nodejs.org...
-    call winget install Schniz.fnm
-    call %vendorPath%\refreshenv.bat
-    call fnm use --install-if-missing 20
-    echo Done
-    call node -v
-    call npm -v
+where node >nul 2>&1
+if %errorlevel% neq 0 (
+    echo Node.js not installed. Would you like to use fnm?
+    choice /C YN /M "Automatically install Node.js? [Y/N]"
+    if errorlevel 2 (
+        echo User chose to use fnm. Please install Node.js from https://nodejs.org/en/download/ and try again.
+        EXIT /B 1
+    ) else (
+        echo User chose to use fnm. Proceeding with fnm installation...
+        
+        :: Install fnm using winget
+        call winget install Schniz.fnm
+        call %vendorPath%\refreshenv.bat
+        
+        :: Use fnm to install Node.js version 20
+        call fnm use --install-if-missing 20
+        
+        echo Done
+        call node -v
+        call npm -v
+    )
+) else (
+    echo Node.js is already installed.
 )
 echo .
 
