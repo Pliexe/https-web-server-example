@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "ts-node-dev --rs --respawn --ignore-watch=.next --inspect=4321 src/server.ts",
     "build": "tsc",
-    "start": "node ./out/server.js"
+    "start": "node ./out/server.js",
+    "unity": "node ./out/unity.js"
   },
   "author": "Pliexe",
   "license": "MIT",
@@ -15,6 +16,7 @@
     "@types/node": "^20.14.10",
     "connect-livereload": "^0.6.1",
     "express": "^4.19.2",
+    "express-static-gzip": "^2.1.7",
     "livereload": "^0.9.3",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.5.3"
