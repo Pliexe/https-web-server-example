@@ -79,12 +79,12 @@ echo .
 
 echo Installing project dependencies...
 
-npm install
+call npm install
 
 echo .
 echo Building project...
 
-npm run build
+call npm run build
 
 echo .
 

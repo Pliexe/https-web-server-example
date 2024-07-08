@@ -5,6 +5,7 @@ import path from "path";
 import fs from "fs";
 import livereload from "livereload";
 import connectLivereload from "connect-livereload";
+import { exec } from "child_process";
 
 const app = express();
 const httpConnection = http.createServer(app);
@@ -48,4 +49,16 @@ httpConnection.listen(HTTP_PORT, () => {
 });
 httpsConnection.listen(HTTPS_PORT, () => {
     console.log(`HTTPS server listening on port ${HTTPS_PORT}`);
-})
+});
+
+const url = "https://localhost";
+
+// Open https://localhost in the default browser
+// For Windows
+if (process.platform === 'win32') {
+    exec(`start ${url}`);
+}
+// For macOS/Linux
+else {
+    exec(`open -a "Google Chrome" "${url}"`);
+}
