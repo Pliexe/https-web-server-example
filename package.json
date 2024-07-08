@@ -5,6 +5,7 @@
   "main": "out/server.js",
   "scripts": {
     "dev": "ts-node-dev --rs --respawn --ignore-watch=.next --inspect=4321 src/server.ts",
+    "dev:unity": "ts-node-dev --rs --respawn --ignore-watch=.next --inspect=4321 src/unity.ts",
     "build": "tsc",
     "start": "node ./out/server.js",
     "unity": "node ./out/unity.js"

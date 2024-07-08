@@ -35,6 +35,8 @@ app.use((req, res, next) => {
     if (/\.js\.br$/.test(req.path) || /\.css\.br$/.test(req.path)) {
         res.set('Content-Encoding', 'br');
     }
+    // res.set('Content-Encoding', 'br');
+
     next();
 });
 
@@ -42,9 +44,16 @@ app.get('/:filename', function(req, res) {
     let filename = req.params.filename;
     if (!filename.includes(".")) filename += ".html";
     
+    if (/\.js\.br$/.test(req.path) || /\.css\.br$/.test(req.path)) {
+        res.set('Content-Encoding', 'br');
+    }
+
     res.sendFile(filename, { root: path.join(__dirname, `../public`) }, function(err) {
         if (err) {
-            res.sendFile(path.join(__dirname, "../public/404.html"));
+            res.status(404).send(`
+                <h1>Error</h1>
+                <p>${err.message}</p>
+            `);
         }
     });
 });
