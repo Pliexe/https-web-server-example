@@ -28,37 +28,24 @@ app.use(connectLivereload());
 app.use(expressStaticGzip(path.join(__dirname, "../public"), {
     enableBrotli: true,
     orderPreference: ['br', 'gz'],
+    serveStatic: {
+        setHeaders: function(res, path) {
+            if (/\.br$/.test(path)) {
+                res.setHeader('Content-Encoding', 'br');
+            }
+
+            if (/\.gz$/.test(path)) {
+                res.setHeader('Content-Encoding', 'gzip');
+            }
+
+            if (/\wasm.br$/.test(path) || /\.gz$/.test(path)) {
+                res.setHeader('Content-Type', 'application/wasm');
+            }
+        }
+    }
 }));
 
-// Custom middleware to set Content-Encoding header for Brotli files
-app.use((req, res, next) => {
-    if (/\.js\.br$/.test(req.path) || /\.css\.br$/.test(req.path)) {
-        res.set('Content-Encoding', 'br');
-    }
-    // res.set('Content-Encoding', 'br');
-
-    next();
-});
-
-app.get('/:filename', function(req, res) {
-    let filename = req.params.filename;
-    if (!filename.includes(".")) filename += ".html";
-    
-    if (/\.js\.br$/.test(req.path) || /\.css\.br$/.test(req.path)) {
-        res.set('Content-Encoding', 'br');
-    }
-
-    res.sendFile(filename, { root: path.join(__dirname, `../public`) }, function(err) {
-        if (err) {
-            res.status(404).send(`
-                <h1>Error</h1>
-                <p>${err.message}</p>
-            `);
-        }
-    });
-});
-
-app.use(express.static(path.join(__dirname, "../public")));
+// app.use(express.static(path.join(__dirname, "../public")));
 
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
     console.error(err);
