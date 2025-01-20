@@ -59,7 +59,7 @@ To build from source, follow these steps:
 
 ## Binaries
 Prebuilt binaries are available for:
-- Windows [version 0.1.0](https://github.com/Pliexe/https-web-server-example/releases/download/0.1.0/win64.7z)
+- Windows [version 0.1.1](https://github.com/Pliexe/https-web-server-example/releases/download/0.1.1/win64.7z)
 - Windows and Linux: [Download from latest release](https://github.com/Pliexe/https-web-server-example/releases/latest)
 
 ## License 
