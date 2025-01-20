@@ -1,6 +1,39 @@
 # Description
 This is a small example of a HTTP/HTTPS web server in Rust with Brotli compression support. This project was created for the sole purpose of having an easier way to run a Unity exported WebGL build.
 
+## Usage
+
+To run the server, use the following command:
+```bash
+https-web-server-example [OPTIONS] [PATH]
+```
+
+### Arguments
+- `PATH`: Directory to serve (default: current directory)
+
+### Options
+- `--cert <CERT>`: Path to SSL certificate (default certs/localhost.pem)
+- `--key <KEY>`: Path to SSL private key (default certs/localhost-key.pem)
+- `-p, --port <PORT>`: Set the port number (default: 8080)
+- `-s, --ssl`: Enable SSL and optionally set the port (default: 8443)
+- `-h, --help`: Display help information
+- `-V, --version`: Display version information
+
+### Examples
+```bash
+# Serve current directory on HTTP port 8080
+https-web-server
+
+# Serve specific directory on port 3000
+https-web-server -p 3000 /path/to/directory
+
+# Enable HTTPS with self-signed certificate
+https-web-server -s
+
+# Use custom SSL certificate
+https-web-server -c cert.pem -k key.pem
+```
+
 ## Installation
 You can get the server in two ways:
 1. Download [prebuilt binaries](#binaries)

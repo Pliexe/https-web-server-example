@@ -14,3 +14,4 @@
 # ingore downloaded files
 mkcert_windows_amd64.exe
 tmp/
+.vscode

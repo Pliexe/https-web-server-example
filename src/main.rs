@@ -21,7 +21,7 @@ use actix_web_actors::ws;
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// Path to serve
-    #[arg(short, long, default_value = "public")]
+    #[arg(default_value = "public")]
     path: String,
 
     /// Path to certifictate 
@@ -31,8 +31,17 @@ struct Args {
     /// Path to private key
     #[arg(long)]
     key: Option<String>,
-}
 
+    /// HTTP port
+    #[arg(short, long, default_value_t = 8080)]
+    port: u16,
+    
+    /// Enable SSL and optionally set the port [default: 8443]
+    #[arg(short, long)]
+    ssl: Option<Option<u16>>,
+
+}
+//  BOZO
 struct WsSession { rx: broadcast::Receiver<()> }
 
 impl Actor for WsSession { type Context = ws::WebsocketContext<Self>; }
@@ -309,11 +318,17 @@ async fn main() -> std::io::Result<()> {
         RecursiveMode::Recursive,
     ).unwrap();
 
-    let ssl_config = load_ssl_config(&args);
+    let ssl_port = args.ssl.unwrap_or(Some(8443)).unwrap_or(8443);
+
+    let ssl_config = if args.ssl.is_some() {
+        load_ssl_config(&args)
+    } else {
+        None
+    };
     
-    println!("HTTP server listening on port 80");
+    println!("HTTP server listening on port {}", args.port);
     if ssl_config.is_some() {
-        println!("HTTPS server listening on port 443");
+        println!("HTTPS server listening on port {}", ssl_port);
         if args.cert.is_some() || args.key.is_some() {
             println!("Using custom SSL certificates:");
             println!("  Certificate: {}", args.cert.as_deref().unwrap_or("certs/localhost.pem"));
@@ -322,12 +337,23 @@ async fn main() -> std::io::Result<()> {
     }
     println!("Serving files from: {}", args.path);
 
-    #[cfg(target_os = "windows")]
-    std::process::Command::new("cmd").args(&["/C", "start", "https://localhost"]).spawn().ok();
-    #[cfg(target_os = "macos")]
-    std::process::Command::new("open").arg("https://localhost").spawn().ok();
-    #[cfg(target_os = "linux")]
-    std::process::Command::new("xdg-open").arg("https://localhost").spawn().ok();
+    if ssl_config.is_some() {
+        let url = format!("https://localhost:{}", ssl_port);
+        #[cfg(target_os = "windows")]
+        std::process::Command::new("cmd").args(&["/C", "start", url.as_str()]).spawn().ok();
+        #[cfg(target_os = "macos")]
+        std::process::Command::new("open").arg(url).spawn().ok();
+        #[cfg(target_os = "linux")]
+        std::process::Command::new("xdg-open").arg(url).spawn().ok();
+    } else {
+        let url = format!("http://localhost:{}", args.port);
+        #[cfg(target_os = "windows")]
+        std::process::Command::new("cmd").args(&["/C", "start", url.as_str()]).spawn().ok();
+        #[cfg(target_os = "macos")]
+        std::process::Command::new("open").arg(url).spawn().ok();
+        #[cfg(target_os = "linux")]
+        std::process::Command::new("xdg-open").arg(url).spawn().ok();
+    }
 
     let path_str = args.path.clone();
     let path_buf = PathBuf::from(path_str.clone());
@@ -347,18 +373,18 @@ async fn main() -> std::io::Result<()> {
     match ssl_config {
         Some(ssl_config) => {
             let http_server = HttpServer::new(app_factory.clone())
-                .bind("0.0.0.0:80")?
+                .bind(format!("0.0.0.0:{}", args.port))?
                 .run();
 
             let https_server = HttpServer::new(app_factory)
-                .bind_rustls_021("0.0.0.0:443", ssl_config)? 
+                .bind_rustls_021(format!("0.0.0.0:{}", ssl_port), ssl_config)? 
                 .run();
 
             futures_util::future::try_join(http_server, https_server).await?;
         }
         None => {
             let http_server = HttpServer::new(app_factory)
-                .bind("0.0.0.0:80")?
+                .bind(format!("0.0.0.0:{}", args.port))?
                 .run();
 
             http_server.await?;
