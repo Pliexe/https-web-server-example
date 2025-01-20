@@ -135,6 +135,7 @@ async fn handle_file(
 
     match NamedFile::open(&path) {
         Ok(file) => {
+
             if *reload_enabled.as_ref() && path.extension().map_or(false, |ext| ext == "html") {
                 let file_content = std::fs::read_to_string(&path)?;
                 
@@ -365,8 +366,8 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(tx.clone()))
             .app_data(web::Data::new(true)) // live reload enablrd
             .service(web::resource("/ws").route(web::get().to(ws_route)))
-            .service(actix_files::Files::new("/", &path_str).index_file("index.html"))
             .route("/{filename:.*}", web::get().to(handle_file))
+            .service(actix_files::Files::new("/", &path_str).index_file("index.html"))
             .default_service(web::route().to(error_handler))
     };
 
