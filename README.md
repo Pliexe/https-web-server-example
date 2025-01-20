@@ -31,7 +31,7 @@ https-web-server -p 3000 /path/to/directory
 https-web-server -s
 
 # Use custom SSL certificate
-https-web-server -c cert.pem -k key.pem
+https-web-server -s --cert cert.pem --key key.pem
 ```
 
 ## Installation
