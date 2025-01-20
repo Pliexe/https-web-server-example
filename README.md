@@ -1,6 +1,11 @@
 # Description
 This is a small example of a HTTP/HTTPS web server in Rust with Brotli compression support. This project was created for the sole purpose of having an easier way to run a Unity exported WebGL build.
 
+## Installation
+You can get the server in two ways:
+1. Download [prebuilt binaries](#binaries)
+2. [Build from source](#build)
+
 ## Usage
 
 To run the server, use the following command:
@@ -33,11 +38,6 @@ https-web-server -s
 # Use custom SSL certificate
 https-web-server -s --cert cert.pem --key key.pem
 ```
-
-## Installation
-You can get the server in two ways:
-1. Download [prebuilt binaries](#binaries)
-2. [Build from source](#build)
 
 ## Build
 To build from source, follow these steps:
