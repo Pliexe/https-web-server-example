@@ -57,8 +57,10 @@ const url = "https://localhost";
 // For Windows
 if (process.platform === 'win32') {
     exec(`start ${url}`);
-}
-// For macOS/Linux
-else {
-    exec(`open -a "Google Chrome" "${url}"`);
+} else if (process.platform === 'darwin') {
+    // For macOS
+    exec(`open ${url}`);
+} else {
+    // For Linux
+    exec(`xdg-open ${url}`);
 }
