@@ -1,6 +1,18 @@
 @echo off
 setlocal enabledelayedexpansion
 
+@echo WARNING: This script will:
+@echo  - Create a 'vendor' folder in the current directory
+@echo  - Create a 'certs' folder in the current directory
+@echo  - Download mkcert tool and generate SSL certificates
+@echo.
+
+set /p confirm="Do you want to proceed? (Y/N): "
+if /i not "%confirm%"=="Y" (
+    echo Operation cancelled by user.
+    exit /b 1
+)
+
 @echo Begin setup...
 
 :: Get the directory of the current batch file
@@ -48,47 +60,7 @@ call "%fullPath%" -install || EXIT /B 1
 echo Generating certificates for localhost, 127.0.0.1, and ::1...
 call "%fullPath%" --key-file localhost-key.pem --cert-file localhost.pem localhost 127.0.0.1 ::1 || EXIT /B 1
 
-echo .
-:: Check if nodejs is presnet
-echo Checking if nodejs is installed...
-where node >nul 2>&1
-if %errorlevel% neq 0 (
-    echo Node.js not installed. Would you like to use fnm?
-    choice /C YN /M "Automatically install Node.js? [Y/N]"
-    if errorlevel 2 (
-        echo User chose to use fnm. Please install Node.js from https://nodejs.org/en/download/ and try again.
-        EXIT /B 1
-    ) else (
-        echo User chose to use fnm. Proceeding with fnm installation...
-        
-        :: Install fnm using winget
-        call winget install Schniz.fnm
-        call %vendorPath%\refreshenv.bat
-        
-        :: Use fnm to install Node.js version 20
-        call fnm use --install-if-missing 20
-        
-        echo Done
-        call node -v
-        call npm -v
-    )
-) else (
-    echo Node.js is already installed.
-)
-echo .
-
-echo Installing project dependencies...
-
-call npm install
-
-echo .
-echo Building project...
-
-call npm run build
-
-echo .
-
-echo Setup completed successfully.
+echo Generation of certificates completed successfully.
 
 endlocal
 
