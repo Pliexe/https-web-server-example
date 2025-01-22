@@ -51,7 +51,7 @@ struct Args {
     #[arg(short, long)]
     ssl: Option<Option<u16>>,
 
-    // Enable support for shared buffers
+    // Enable support for shared buffers (default: false)
     #[arg(long, default_value_t = false)]
     enable_shared_buf: bool,
 
