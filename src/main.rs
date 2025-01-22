@@ -1,21 +1,32 @@
+use actix::{Actor, AsyncContext, StreamHandler};
 use actix_files::NamedFile;
-use actix_web::{ middleware, web, App, HttpRequest, HttpResponse, HttpServer, Result, http::header::{self} };
+use actix_web::{
+    http::header::{self},
+    middleware, web, App, HttpRequest, HttpResponse, HttpServer, Result,
+};
+use actix_web_actors::ws;
 use clap::Parser;
-use notify::{Watcher, RecursiveMode};
+use notify::{RecursiveMode, Watcher};
 use rustls::{Certificate, PrivateKey, ServerConfig};
 use std::{fs::File, io::BufReader, path::PathBuf};
 use tokio::sync::broadcast;
-use actix::{Actor, StreamHandler, AsyncContext};
-use actix_web_actors::ws;
 
-#[cfg(windows)] use std::ffi::OsStr;
-#[cfg(windows)] use std::os::windows::ffi::OsStrExt;
-#[cfg(windows)] use winapi::um::winuser::{MessageBoxW, MB_ICONERROR, MB_OK};
-#[cfg(windows)] use winapi::um::consoleapi::AllocConsole;
-#[cfg(windows)] use winapi::um::processenv::GetStdHandle;
-#[cfg(windows)] use winapi::shared::minwindef::DWORD;
-#[cfg(windows)] use winapi::um::winbase::STD_OUTPUT_HANDLE;
-#[cfg(windows)] use winapi::um::handleapi::INVALID_HANDLE_VALUE;
+#[cfg(windows)]
+use std::ffi::OsStr;
+#[cfg(windows)]
+use std::os::windows::ffi::OsStrExt;
+#[cfg(windows)]
+use winapi::shared::minwindef::DWORD;
+#[cfg(windows)]
+use winapi::um::consoleapi::AllocConsole;
+#[cfg(windows)]
+use winapi::um::handleapi::INVALID_HANDLE_VALUE;
+#[cfg(windows)]
+use winapi::um::processenv::GetStdHandle;
+#[cfg(windows)]
+use winapi::um::winbase::STD_OUTPUT_HANDLE;
+#[cfg(windows)]
+use winapi::um::winuser::{MessageBoxW, MB_ICONERROR, MB_OK};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -24,7 +35,7 @@ struct Args {
     #[arg(default_value = "public")]
     path: String,
 
-    /// Path to certifictate 
+    /// Path to certifictate
     #[arg(long)]
     cert: Option<String>,
 
@@ -35,16 +46,27 @@ struct Args {
     /// HTTP port
     #[arg(short, long, default_value_t = 8080)]
     port: u16,
-    
+
     /// Enable SSL and optionally set the port [default: 8443]
     #[arg(short, long)]
     ssl: Option<Option<u16>>,
 
+    // Enable support for shared buffers
+    #[arg(long, default_value_t = false)]
+    enable_shared_buf: bool,
+
+    // Disable cache (Cache-Control: no-cache) (default: false)
+    #[arg(long, default_value_t = false)]
+    disable_cache: bool,
 }
 //  BOZO
-struct WsSession { rx: broadcast::Receiver<()> }
+struct WsSession {
+    rx: broadcast::Receiver<()>,
+}
 
-impl Actor for WsSession { type Context = ws::WebsocketContext<Self>; }
+impl Actor for WsSession {
+    type Context = ws::WebsocketContext<Self>;
+}
 
 impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsSession {
     fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
@@ -55,7 +77,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsSession {
 
     fn started(&mut self, ctx: &mut Self::Context) {
         let mut rx = self.rx.resubscribe();
-        ctx.run_interval(std::time::Duration::from_millis(100), move |_, ctx| { 
+        ctx.run_interval(std::time::Duration::from_millis(100), move |_, ctx| {
             if let Ok(_) = rx.try_recv() {
                 ctx.text("reload");
             }
@@ -69,12 +91,12 @@ impl WsSession {
     }
 }
 
-async fn ws_route(req: HttpRequest, stream: web::Payload, rx: web::Data<broadcast::Sender<()>>) -> Result<HttpResponse> {
-    let resp = ws::start(
-        WsSession::new(rx.subscribe()),
-        &req,
-        stream,
-    )?;
+async fn ws_route(
+    req: HttpRequest,
+    stream: web::Payload,
+    rx: web::Data<broadcast::Sender<()>>,
+) -> Result<HttpResponse> {
+    let resp = ws::start(WsSession::new(rx.subscribe()), &req, stream)?;
     Ok(resp)
 }
 
@@ -107,6 +129,8 @@ async fn handle_file(
     req: HttpRequest,
     path_base: web::Data<PathBuf>,
     reload_enabled: web::Data<bool>,
+    enable_shared_buf: web::Data<bool>,
+    disable_cache: web::Data<bool>,
 ) -> Result<HttpResponse> {
     let mut filename = req.match_info().query("filename").to_string();
     if filename.is_empty() {
@@ -116,12 +140,12 @@ async fn handle_file(
     }
 
     let path = path_base.join(&filename);
-    
+
     let br_path = PathBuf::from(&format!("{}.br", path.display()));
     if br_path.exists() {
         let mime_type = mime_guess::from_path(&path).first_or_octet_stream();
         let file_contents = std::fs::read(br_path)?;
-        
+
         let mut builder = HttpResponse::Ok();
         builder.content_type(mime_type.as_ref());
         builder.insert_header(("Content-Encoding", "br"));
@@ -135,18 +159,27 @@ async fn handle_file(
 
     match NamedFile::open(&path) {
         Ok(file) => {
-
             if *reload_enabled.as_ref() && path.extension().map_or(false, |ext| ext == "html") {
                 let file_content = std::fs::read_to_string(&path)?;
-                
+
                 let html = inject_live_reload(&file_content);
-                
-                return Ok(HttpResponse::Ok()
-                    .content_type("text/html; charset=utf-8")
-                    .body(html));
+
+                let mut req = HttpResponse::Ok();
+                req.content_type("text/html; charset=utf-8");
+
+                if *disable_cache.as_ref() {
+                    req.append_header(("Cache-Control", "no-cache"));
+                }
+
+                if *enable_shared_buf.as_ref() {
+                    req.append_header(("Cross-Origin-Embedder-Policy", "require-corp"))
+                        .append_header(("Cross-Origin-Opener-Policy", "same-origin"));
+                }
+
+                return Ok(req.body(html));
             }
             Ok(file.into_response(&req))
-        },
+        }
         Err(_) => {
             let not_found_path = path_base.join("404.html");
             match NamedFile::open(not_found_path) {
@@ -159,14 +192,8 @@ async fn handle_file(
 
 #[cfg(windows)]
 fn show_error_message_box(title: &str, message: &str) {
-    let title: Vec<u16> = OsStr::new(title)
-        .encode_wide()
-        .chain(Some(0))
-        .collect();
-    let message: Vec<u16> = OsStr::new(message)
-        .encode_wide()
-        .chain(Some(0))
-        .collect();
+    let title: Vec<u16> = OsStr::new(title).encode_wide().chain(Some(0)).collect();
+    let message: Vec<u16> = OsStr::new(message).encode_wide().chain(Some(0)).collect();
     unsafe {
         MessageBoxW(
             std::ptr::null_mut(),
@@ -243,11 +270,15 @@ fn load_ssl_config(args: &Args) -> Option<rustls::ServerConfig> {
     match (cert_file, key_file) {
         (Ok(mut cert_file), Ok(mut key_file)) => {
             let cert_chain = match rustls_pemfile::certs(&mut cert_file) {
-                Ok(certs) => certs.into_iter()
+                Ok(certs) => certs
+                    .into_iter()
                     .map(Certificate)
                     .collect::<Vec<Certificate>>(),
                 Err(e) => {
-                    let error_msg = format!("Failed to load certificates: {}. Running in HTTP-only mode.", e);
+                    let error_msg = format!(
+                        "Failed to load certificates: {}. Running in HTTP-only mode.",
+                        e
+                    );
                     println!("{}", error_msg);
                     #[cfg(windows)]
                     show_error_message_box("Certificate Error", &error_msg);
@@ -256,11 +287,15 @@ fn load_ssl_config(args: &Args) -> Option<rustls::ServerConfig> {
             };
 
             let mut keys = match rustls_pemfile::pkcs8_private_keys(&mut key_file) {
-                Ok(keys) => keys.into_iter()
+                Ok(keys) => keys
+                    .into_iter()
                     .map(PrivateKey)
                     .collect::<Vec<PrivateKey>>(),
                 Err(e) => {
-                    let error_msg = format!("Failed to load private key: {}. Running in HTTP-only mode.", e);
+                    let error_msg = format!(
+                        "Failed to load private key: {}. Running in HTTP-only mode.",
+                        e
+                    );
                     println!("{}", error_msg);
                     #[cfg(windows)]
                     show_error_message_box("Certificate Error", &error_msg);
@@ -275,7 +310,10 @@ fn load_ssl_config(args: &Args) -> Option<rustls::ServerConfig> {
             {
                 Ok(config) => Some(config),
                 Err(e) => {
-                    let error_msg = format!("Failed to create SSL config: {}. Running in HTTP-only mode.", e);
+                    let error_msg = format!(
+                        "Failed to create SSL config: {}. Running in HTTP-only mode.",
+                        e
+                    );
                     println!("{}", error_msg);
                     #[cfg(windows)]
                     show_error_message_box("Certificate Error", &error_msg);
@@ -299,9 +337,12 @@ async fn main() -> std::io::Result<()> {
     ensure_console();
 
     let args = Args::parse();
-    
+
     if !PathBuf::from(&args.path).exists() {
-        println!("Warning: Path '{}' does not exist. Creating directory.", args.path);
+        println!(
+            "Warning: Path '{}' does not exist. Creating directory.",
+            args.path
+        );
         std::fs::create_dir_all(&args.path)?;
     }
 
@@ -312,12 +353,15 @@ async fn main() -> std::io::Result<()> {
         if let Ok(_) = res {
             let _ = tx_clone.send(());
         }
-    }).unwrap();
+    })
+    .unwrap();
 
-    watcher.watch(
-        PathBuf::from(&args.path).as_path(),
-        RecursiveMode::Recursive,
-    ).unwrap();
+    watcher
+        .watch(
+            PathBuf::from(&args.path).as_path(),
+            RecursiveMode::Recursive,
+        )
+        .unwrap();
 
     let ssl_port = args.ssl.unwrap_or(Some(8443)).unwrap_or(8443);
 
@@ -326,14 +370,20 @@ async fn main() -> std::io::Result<()> {
     } else {
         None
     };
-    
+
     println!("HTTP server listening on port {}", args.port);
     if ssl_config.is_some() {
         println!("HTTPS server listening on port {}", ssl_port);
         if args.cert.is_some() || args.key.is_some() {
             println!("Using custom SSL certificates:");
-            println!("  Certificate: {}", args.cert.as_deref().unwrap_or("certs/localhost.pem"));
-            println!("  Private key: {}", args.key.as_deref().unwrap_or("certs/localhost-key.pem"));
+            println!(
+                "  Certificate: {}",
+                args.cert.as_deref().unwrap_or("certs/localhost.pem")
+            );
+            println!(
+                "  Private key: {}",
+                args.key.as_deref().unwrap_or("certs/localhost-key.pem")
+            );
         }
     }
     println!("Serving files from: {}", args.path);
@@ -341,7 +391,10 @@ async fn main() -> std::io::Result<()> {
     if ssl_config.is_some() {
         let url = format!("https://localhost:{}", ssl_port);
         #[cfg(target_os = "windows")]
-        std::process::Command::new("cmd").args(&["/C", "start", url.as_str()]).spawn().ok();
+        std::process::Command::new("cmd")
+            .args(&["/C", "start", url.as_str()])
+            .spawn()
+            .ok();
         #[cfg(target_os = "macos")]
         std::process::Command::new("open").arg(url).spawn().ok();
         #[cfg(target_os = "linux")]
@@ -349,7 +402,10 @@ async fn main() -> std::io::Result<()> {
     } else {
         let url = format!("http://localhost:{}", args.port);
         #[cfg(target_os = "windows")]
-        std::process::Command::new("cmd").args(&["/C", "start", url.as_str()]).spawn().ok();
+        std::process::Command::new("cmd")
+            .args(&["/C", "start", url.as_str()])
+            .spawn()
+            .ok();
         #[cfg(target_os = "macos")]
         std::process::Command::new("open").arg(url).spawn().ok();
         #[cfg(target_os = "linux")]
@@ -365,6 +421,8 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(path_buf.clone()))
             .app_data(web::Data::new(tx.clone()))
             .app_data(web::Data::new(true)) // live reload enablrd
+            .app_data(web::Data::new(args.enable_shared_buf)) // shared buffer enabled
+            .app_data(web::Data::new(args.disable_cache)) // cache disabled
             .service(web::resource("/ws").route(web::get().to(ws_route)))
             .route("/{filename:.*}", web::get().to(handle_file))
             .service(actix_files::Files::new("/", &path_str).index_file("index.html"))
@@ -378,7 +436,7 @@ async fn main() -> std::io::Result<()> {
                 .run();
 
             let https_server = HttpServer::new(app_factory)
-                .bind_rustls_021(format!("0.0.0.0:{}", ssl_port), ssl_config)? 
+                .bind_rustls_021(format!("0.0.0.0:{}", ssl_port), ssl_config)?
                 .run();
 
             futures_util::future::try_join(http_server, https_server).await?;
