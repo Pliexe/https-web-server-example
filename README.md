@@ -21,6 +21,8 @@ https-web-server-example [OPTIONS] [PATH]
 - `--key <KEY>`: Path to SSL private key (default certs/localhost-key.pem)
 - `-p, --port <PORT>`: Set the port number (default: 8080)
 - `-s, --ssl`: Enable SSL and optionally set the port (default: 8443)
+- `--enable-shared-buf`: Enable support for shared buffers (default: false)
+- `--disable_cache`: Disable cache (Cache-Control: no-cache) (default: false)
 - `-h, --help`: Display help information
 - `-V, --version`: Display version information
 
