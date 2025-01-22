@@ -38,6 +38,9 @@ copy "target\release\https-web-server-example" "build\https-web-server-example-l
 xcopy "public\*" "build\windows\public\" /s /e
 xcopy "public\*" "build\linux\public\" /s /e
 
+copy "generate_certs.bat" "build\windows\generate_certs.bat"
+copy "generate_certs.sh" "build\linux\generate_certs.sh"
+
 copy "LICENSE" "build\windows\LICENSE"
 copy "LICENSE" "build\linux\LICENSE"
 
