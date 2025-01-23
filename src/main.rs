@@ -159,6 +159,10 @@ async fn handle_file(
         builder.content_type(mime_type.as_ref());
         builder.insert_header(("Content-Encoding", "gzip"));
 
+        if filename.ends_with(".js.gz") {
+            builder.insert_header((header::CONTENT_TYPE, "application/javascript"));
+        }
+        
         if filename.ends_with(".wasm.gz") {
             builder.insert_header((header::CONTENT_TYPE, "application/wasm"));
         }
@@ -183,6 +187,10 @@ async fn handle_file(
         let mut builder = HttpResponse::Ok();
         builder.content_type(mime_type.as_ref());
         builder.insert_header(("Content-Encoding", "br"));
+
+        if filename.ends_with(".js.br") {
+            builder.insert_header((header::CONTENT_TYPE, "application/javascript"));
+        }
 
         if filename.ends_with(".wasm.br") {
             builder.insert_header((header::CONTENT_TYPE, "application/wasm"));
