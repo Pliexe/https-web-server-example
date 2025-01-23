@@ -163,6 +163,15 @@ async fn handle_file(
             builder.insert_header((header::CONTENT_TYPE, "application/wasm"));
         }
 
+        if app_data.disable_cache {
+            builder.append_header(("Cache-Control", "no-cache"));
+        }
+
+        if app_data.enable_shared_buffer {
+            builder.append_header(("Cross-Origin-Embedder-Policy", "require-corp"))
+                .append_header(("Cross-Origin-Opener-Policy", "same-origin"));
+        }
+
         return Ok(builder.body(file_contents));
     }
 
@@ -177,6 +186,15 @@ async fn handle_file(
 
         if filename.ends_with(".wasm.br") {
             builder.insert_header((header::CONTENT_TYPE, "application/wasm"));
+        }
+
+        if app_data.disable_cache {
+            builder.append_header(("Cache-Control", "no-cache"));
+        }
+
+        if app_data.enable_shared_buffer {
+            builder.append_header(("Cross-Origin-Embedder-Policy", "require-corp"))
+                .append_header(("Cross-Origin-Opener-Policy", "same-origin"));
         }
 
         return Ok(builder.body(file_contents));
