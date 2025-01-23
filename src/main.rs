@@ -52,11 +52,11 @@ struct Args {
     ssl: Option<Option<u16>>,
 
     // Enable support for shared buffers (default: false)
-    #[arg(long, default_value_t = false)]
-    enable_shared_buf: bool,
+    #[arg(long, default_value_t = false, aliases = ["shared-buffer", "sharedbuf", "mt"])]
+    enable_shared_buffer: bool,
 
     // Disable cache (Cache-Control: no-cache) (default: false)
-    #[arg(long, default_value_t = false)]
+    #[arg(long, default_value_t = false, aliases = ["no-cache", "nc"])]
     disable_cache: bool,
 }
 //  BOZO
