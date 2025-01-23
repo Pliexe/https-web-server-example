@@ -127,7 +127,7 @@ fn inject_live_reload(html: &str) -> String {
 
 struct AppData {
     reload_enabled: bool,
-    enable_shared_buf: bool,
+    enable_shared_buffer: bool,
     disable_cache: bool,
 }
 
@@ -150,16 +150,32 @@ async fn handle_file(
 
     println!("Requested: {}", path.display());
 
-    let br_path = PathBuf::from(&format!("{}.br", path.display()));
-    if br_path.exists() {
+    if path.extension().and_then(|e| e.to_str()).map_or(false, |e| e == "gz") {
+
         let mime_type = mime_guess::from_path(&path).first_or_octet_stream();
-        let file_contents = std::fs::read(br_path)?;
+        let file_contents = std::fs::read(path)?;
+
+        let mut builder = HttpResponse::Ok();
+        builder.content_type(mime_type.as_ref());
+        builder.insert_header(("Content-Encoding", "gzip"));
+
+        if filename.ends_with(".wasm.gz") {
+            builder.insert_header((header::CONTENT_TYPE, "application/wasm"));
+        }
+
+        return Ok(builder.body(file_contents));
+    }
+
+    if path.extension().and_then(|e| e.to_str()).map_or(false, |e| e == "br") {
+
+        let mime_type = mime_guess::from_path(&path).first_or_octet_stream();
+        let file_contents = std::fs::read(path)?;
 
         let mut builder = HttpResponse::Ok();
         builder.content_type(mime_type.as_ref());
         builder.insert_header(("Content-Encoding", "br"));
 
-        if filename.ends_with(".wasm") {
+        if filename.ends_with(".wasm.br") {
             builder.insert_header((header::CONTENT_TYPE, "application/wasm"));
         }
 
@@ -184,7 +200,7 @@ async fn handle_file(
                     builder.append_header(("Cache-Control", "no-cache"));
                 }
 
-                if app_data.enable_shared_buf {
+                if app_data.enable_shared_buffer {
                     builder.append_header(("Cross-Origin-Embedder-Policy", "require-corp"))
                         .append_header(("Cross-Origin-Opener-Policy", "same-origin"));
                 }
@@ -384,7 +400,7 @@ async fn main() -> std::io::Result<()> {
         None
     };
 
-    if args.enable_shared_buf == true {
+    if args.enable_shared_buffer == true {
         println!("Added required headers for shared buffer");
     }
 
@@ -443,7 +459,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(middleware::Logger::default())
             .app_data(web::Data::new(path_buf.clone()))
             .app_data(web::Data::new(tx.clone()))
-            .app_data(web::Data::new(AppData { reload_enabled: true, enable_shared_buf: args.enable_shared_buf, disable_cache: args.disable_cache }))
+            .app_data(web::Data::new(AppData { reload_enabled: true, enable_shared_buffer: args.enable_shared_buffer, disable_cache: args.disable_cache }))
             .service(web::resource("/ws").route(web::get().to(ws_route)))
             .route("/", web::get().to(handle_file))
             .route("/{filename:.*}", web::get().to(handle_file))
