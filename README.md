@@ -21,8 +21,8 @@ https-web-server-example [OPTIONS] [PATH]
 - `--key <KEY>`: Path to SSL private key (default certs/localhost-key.pem)
 - `-p, --port <PORT>`: Set the port number (default: 8080)
 - `-s, --ssl`: Enable SSL and optionally set the port (default: 8443)
-- `--enable-shared-buf`: Enable support for shared buffers (default: false)
-- `--disable_cache`: Disable cache (Cache-Control: no-cache) (default: false)
+- `--enable-shared-buffer, --shared-buffer, --sharedbuf, --mt`: Enable support for shared buffers (default: false)
+- `--disable-cache, --no-cache, --nc`: Disable cache (Cache-Control: no-cache) (default: false)
 - `-h, --help`: Display help information
 - `-V, --version`: Display version information
 
@@ -61,7 +61,7 @@ To build from source, follow these steps:
 
 ## Binaries
 Prebuilt binaries are available for:
-- Windows [version 0.1.2](https://github.com/Pliexe/https-web-server-example/releases/download/0.1.2/win64.7z)
+- Windows [version 0.1.3](https://github.com/Pliexe/https-web-server-example/releases/download/0.1.3/win64.7z)
 - Windows and Linux: [Download from latest release](https://github.com/Pliexe/https-web-server-example/releases/latest)
 
 ## License 
