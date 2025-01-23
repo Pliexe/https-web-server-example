@@ -125,14 +125,21 @@ fn inject_live_reload(html: &str) -> String {
     }
 }
 
+struct AppData {
+    reload_enabled: bool,
+    enable_shared_buf: bool,
+    disable_cache: bool,
+}
+
 async fn handle_file(
     req: HttpRequest,
     path_base: web::Data<PathBuf>,
-    reload_enabled: web::Data<bool>,
-    enable_shared_buf: web::Data<bool>,
-    disable_cache: web::Data<bool>,
+    app_data: web::Data<AppData>,
 ) -> Result<HttpResponse> {
     let mut filename = req.match_info().query("filename").to_string();
+
+    let app_data = app_data.into_inner();
+
     if filename.is_empty() {
         filename = "index.html".to_string();
     } else if !filename.contains('.') {
@@ -140,6 +147,8 @@ async fn handle_file(
     }
 
     let path = path_base.join(&filename);
+
+    println!("Requested: {}", path.display());
 
     let br_path = PathBuf::from(&format!("{}.br", path.display()));
     if br_path.exists() {
@@ -159,24 +168,28 @@ async fn handle_file(
 
     match NamedFile::open(&path) {
         Ok(file) => {
-            if *reload_enabled.as_ref() && path.extension().map_or(false, |ext| ext == "html") {
+            if path.extension().map_or(false, |ext| ext == "html") {
+
                 let file_content = std::fs::read_to_string(&path)?;
+                let html;
 
-                let html = inject_live_reload(&file_content);
+                if app_data.reload_enabled  {
+                    html = inject_live_reload(&file_content);
+                } else { html = file_content; }
 
-                let mut req = HttpResponse::Ok();
-                req.content_type("text/html; charset=utf-8");
-
-                if *disable_cache.as_ref() {
-                    req.append_header(("Cache-Control", "no-cache"));
+                let mut builder = HttpResponse::Ok();
+                builder.content_type("text/html; charset=utf-8");
+                
+                if app_data.disable_cache {
+                    builder.append_header(("Cache-Control", "no-cache"));
                 }
 
-                if *enable_shared_buf.as_ref() {
-                    req.append_header(("Cross-Origin-Embedder-Policy", "require-corp"))
+                if app_data.enable_shared_buf {
+                    builder.append_header(("Cross-Origin-Embedder-Policy", "require-corp"))
                         .append_header(("Cross-Origin-Opener-Policy", "same-origin"));
                 }
 
-                return Ok(req.body(html));
+                return Ok(builder.body(html));
             }
             Ok(file.into_response(&req))
         }
@@ -371,6 +384,14 @@ async fn main() -> std::io::Result<()> {
         None
     };
 
+    if args.enable_shared_buf == true {
+        println!("Added required headers for shared buffer");
+    }
+
+    if args.disable_cache == true {
+        println!("Added header for no cache");
+    }
+
     println!("HTTP server listening on port {}", args.port);
     if ssl_config.is_some() {
         println!("HTTPS server listening on port {}", ssl_port);
@@ -415,15 +436,16 @@ async fn main() -> std::io::Result<()> {
     let path_str = args.path.clone();
     let path_buf = PathBuf::from(path_str.clone());
 
+
+
     let app_factory = move || {
         App::new()
             .wrap(middleware::Logger::default())
             .app_data(web::Data::new(path_buf.clone()))
             .app_data(web::Data::new(tx.clone()))
-            .app_data(web::Data::new(true)) // live reload enablrd
-            .app_data(web::Data::new(args.enable_shared_buf)) // shared buffer enabled
-            .app_data(web::Data::new(args.disable_cache)) // cache disabled
+            .app_data(web::Data::new(AppData { reload_enabled: true, enable_shared_buf: args.enable_shared_buf, disable_cache: args.disable_cache }))
             .service(web::resource("/ws").route(web::get().to(ws_route)))
+            .route("/", web::get().to(handle_file))
             .route("/{filename:.*}", web::get().to(handle_file))
             .service(actix_files::Files::new("/", &path_str).index_file("index.html"))
             .default_service(web::route().to(error_handler))
