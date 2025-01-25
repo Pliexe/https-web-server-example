@@ -233,7 +233,19 @@ async fn handle_file(
 
                 return Ok(builder.body(html));
             }
-            Ok(file.into_response(&req))
+            
+            let mut body = file.into_response(&req);
+            
+            if app_data.disable_cache {
+                body.headers_mut().insert(header::CACHE_CONTROL, header::HeaderValue::from_static("no-cache"));
+            }
+            
+            if app_data.enable_shared_buffer {
+                body.headers_mut().insert(header::CROSS_ORIGIN_EMBEDDER_POLICY, header::HeaderValue::from_static("require-corp"));
+                body.headers_mut().insert(header::CROSS_ORIGIN_OPENER_POLICY, header::HeaderValue::from_static("same-origin"));
+            }
+
+            Ok(body)
         }
         Err(_) => {
             let not_found_path = path_base.join("404.html");
@@ -489,7 +501,6 @@ async fn main() -> std::io::Result<()> {
             .service(web::resource("/ws").route(web::get().to(ws_route)))
             .route("/", web::get().to(handle_file))
             .route("/{filename:.*}", web::get().to(handle_file))
-            .service(actix_files::Files::new("/", &path_str).index_file("index.html"))
             .default_service(web::route().to(error_handler))
     };
 
